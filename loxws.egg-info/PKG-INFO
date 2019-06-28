@@ -1,0 +1,16 @@
+Metadata-Version: 2.1
+Name: loxws
+Version: 0.0.1
+Summary: Loxone Client
+Home-page: https://github.com/tsmith/loxws
+Author: tjsmithuk
+Author-email: tsmith@clamfish.com
+License: UNKNOWN
+Description: # loxws Package
+        
+        Loxone Python Client
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Description-Content-Type: text/markdown

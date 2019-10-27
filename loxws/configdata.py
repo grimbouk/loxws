@@ -20,7 +20,7 @@ class ConfigData:
         self.devices = {}
         self.scenes = {}
         self.sensors = {}
-        self.climate = {}
+        self.roomcontrollers = {}
 
         try:
             for k,v in self.data["controls"].items():
@@ -40,11 +40,11 @@ class ConfigData:
                         self.fieldmap[tv] = {"device": self.scenes[k], "stateName": tk}
 
                 if v["type"] == 'IRoomControllerV2':
-                    self.climate[k] = LoxIntelligentRoomControllerV2(k, roomName + v["name"], v["type"])
+                    self.roomcontrollers[k] = LoxIntelligentRoomControllerV2(k, roomName + v["name"], v["type"])
                     _LOGGER.debug("  Map states for IRoomControllerV2")
                     for tk,tv in v["states"].items():
                         _LOGGER.debug("    state: {0} = {1}".format(tv, tk))
-                        self.fieldmap[tv] = {"device": self.climate[k], "stateName": tk}
+                        self.fieldmap[tv] = {"device": self.roomcontrollers[k], "stateName": tk}
 
                 if v["type"] == 'InfoOnlyAnalog':
                     self.sensors[k] = LoxInfoOnlyAnalog(k, roomName + v["name"], v["type"])

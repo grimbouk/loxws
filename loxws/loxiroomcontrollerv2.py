@@ -2,14 +2,16 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-class LoxIRoomControllerV2:
+class LoxIntelligentRoomControllerV2:
     """Class for node abstraction."""
 
     def __init__(self, id, name, device_type):
         self._id = id
         self._name = name
         self._device_type = device_type
-        self._state = False
+        self._current_temp
+        self._target_temp
+        self._hvac_mode
         self.async_callbacks = []
             
     @property
@@ -29,8 +31,16 @@ class LoxIRoomControllerV2:
         return 'Loxone'    
 
     @property
-    def state(self):
-        return self._state
+    def current_temp(self):
+        return self._current_temp
+
+    @property
+    def target_temp(self):
+        return self._target_temp
+
+    @property
+    def hvac_mode(self):
+        return self._hvac_mode
 
     def register_async_callback(self, async_callback):
         #_LOGGER.debug("register_async_callback")
@@ -48,8 +58,20 @@ class LoxIRoomControllerV2:
 
     def set_value(self, stateName, value):
         if self._device_type == "IRoomControllerV2" and stateName == "tempActual":
-            _LOGGER.debug("{0} [{1}] Set Sensor - state={2}".format(self._id, self._name, value))
-            self._state = value
+            _LOGGER.debug("{0} [{1}] Current Temp - state={2}".format(self._id, self._name, value))
+            self._current_temp = value
+
+            self.async_update()
+
+        if self._device_type == "IRoomControllerV2" and stateName == "tempTarget":
+            _LOGGER.debug("{0} [{1}] Target Temp - state={2}".format(self._id, self._name, value))
+            self._target_temp = value
+
+            self.async_update()
+
+        if self._device_type == "IRoomControllerV2" and stateName == "prepareState ":
+            _LOGGER.debug("{0} [{1}] Heating Mode - state={2}".format(self._id, self._name, value))
+            self._hvac_mode = value
 
             self.async_update()
 

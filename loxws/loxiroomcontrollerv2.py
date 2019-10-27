@@ -9,9 +9,9 @@ class LoxIntelligentRoomControllerV2:
         self._id = id
         self._name = name
         self._device_type = device_type
-        self._current_temp
-        self._target_temp
-        self._hvac_mode
+        self._current_temp = 0
+        self._target_temp = 0
+        self._hvac_mode = 0
         self.async_callbacks = []
             
     @property

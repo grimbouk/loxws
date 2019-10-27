@@ -40,7 +40,7 @@ class ConfigData:
                         self.fieldmap[tv] = {"device": self.scenes[k], "stateName": tk}
 
                 if v["type"] == 'IRoomControllerV2':
-                    self.climate[k] = LoxIRoomControllerV2(k, roomName + v["name"], v["type"])
+                    self.climate[k] = LoxIntelligentRoomControllerV2(k, roomName + v["name"], v["type"])
                     _LOGGER.debug("  Map states for IRoomControllerV2")
                     for tk,tv in v["states"].items():
                         _LOGGER.debug("    state: {0} = {1}".format(tv, tk))

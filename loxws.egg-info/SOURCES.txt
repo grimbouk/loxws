@@ -2,13 +2,13 @@ README.md
 setup.py
 loxws/__init__.py
 loxws/configdata.py
+loxws/loxclimatecontroller.py
 loxws/loxcolorpickerv2.py
 loxws/loxdimmer.py
 loxws/loxinfoonlyanalog.py
 loxws/loxinfoonlydigital.py
 loxws/loxiroomcontrollerv2.py
 loxws/loxlightcontrollerv2.py
-loxws/loxclimatecontroller.py
 loxws/loxswitch.py
 loxws/messagebody.py
 loxws/messageheader.py

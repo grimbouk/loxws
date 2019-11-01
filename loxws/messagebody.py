@@ -77,13 +77,9 @@ class MessageBody:
                         device = mapentry["device"]
                         stateName = mapentry["stateName"]
 
-                        if device.device_type == "ClimateController":
-                            _LOGGER.debug("ClimateController {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
+                        _LOGGER.debug("SettingValueState {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
 
-                        else:
-                            _LOGGER.debug("SettingValueState {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
-
-                            device.set_value(stateName, dval)
+                        device.set_value(stateName, dval)
 
                     except Exception as ex:
                         _LOGGER.error(ex)
@@ -189,9 +185,13 @@ class MessageBody:
                         device = mapentry["device"]
                         stateName = mapentry["stateName"]
 
-                        _LOGGER.debug("SettingTextState {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
+                        if device.device_type == "ClimateController":
+                            _LOGGER.debug("ClimateController {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
 
-                        device.set_value(stateName, text)
+                        else:
+                            _LOGGER.debug("SettingTextState {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
+
+                            device.set_value(stateName, text)
 
                     except Exception as ex:
                         _LOGGER.error(ex)

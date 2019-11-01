@@ -53,7 +53,7 @@ class LoxIntelligentRoomControllerV2:
 
     def async_update(self):
         for async_signal_update in self.async_callbacks:
-            _LOGGER.debug("{0} [{1}] async_update() state={2}".format(self._id, self._name, self._state))
+            _LOGGER.debug("{0} [{1}] async_update() ".format(self._id, self._name))
             async_signal_update()
 
     def set_value(self, stateName, value):
@@ -69,7 +69,7 @@ class LoxIntelligentRoomControllerV2:
 
             self.async_update()
 
-        if self._device_type == "IRoomControllerV2" and stateName == "prepareState ":
+        if self._device_type == "IRoomControllerV2" and stateName == "prepareState":
             _LOGGER.debug("{0} [{1}] Heating Mode - state={2}".format(self._id, self._name, value))
             self._hvac_mode = value
 

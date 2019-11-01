@@ -7,6 +7,7 @@ from .loxlightcontrollerv2 import LoxLightControllerV2
 from .loxiroomcontrollerv2 import LoxIntelligentRoomControllerV2
 from .loxinfoonlyanalog import LoxInfoOnlyAnalog
 from .loxinfoonlydigital import LoxInfoOnlyDigital
+from .loxclimatecontroller import LoxClimateController
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class ConfigData:
         self.scenes = {}
         self.sensors = {}
         self.roomcontrollers = {}
+        self.climatecontrollers = {}
 
         try:
             for k,v in self.data["controls"].items():
@@ -31,6 +33,13 @@ class ConfigData:
                 catName = ''
                 if 'cat' in v:
                     catName = "{0} ".format(self.get_cat_name(v["cat"]))
+
+                if v["type"] == 'ClimateController':
+                    self.climatecontrollers[k] = LoxClimateController(k, roomName + v["name"], v["type"])
+                    _LOGGER.debug("  Map states for ClimateController")
+                    for tk,tv in v["states"].items():
+                        _LOGGER.debug("    state: {0} = {1}".format(tv, tk))
+                        self.fieldmap[tv] = {"device": self.climatecontrollers[k], "stateName": tk}
 
                 if v["type"] == 'LightControllerV2':
                     self.scenes[k] = LoxLightControllerV2(k, roomName + v["name"], v["type"])

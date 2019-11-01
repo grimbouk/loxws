@@ -12,6 +12,7 @@ from .loxlightcontrollerv2 import LoxLightControllerV2
 from .loxiroomcontrollerv2 import LoxIntelligentRoomControllerV2
 from .loxinfoonlyanalog import LoxInfoOnlyAnalog
 from .loxinfoonlydigital import LoxInfoOnlyDigital
+from .loxclimatecontroller import LoxClimateController
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -76,79 +77,84 @@ class MessageBody:
                         device = mapentry["device"]
                         stateName = mapentry["stateName"]
 
-                        _LOGGER.debug("SettingState {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
+                        if device.device_type == "ClimateController":
+                            _LOGGER.debug("ClimateController {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
 
-                        device.set_value(stateName, dval)
+                        else:
+                            _LOGGER.debug("SettingValueState {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
+
+                            device.set_value(stateName, dval)
 
                     except Exception as ex:
                         _LOGGER.error(ex)
 
-                category = 'unknown'
-                controlName = ''
-                controlType = ''
-                stateName = ''
-                roomName = ''
-                for k,v in config_data.data["globalStates"].items():
-                    if v == uuid:
-                        category = 'globalState'
-                for k,v in config_data.data["caller"].items():
-                    if v == uuid:
-                        category = 'caller'
-                    if 'states' in v:
-                        for tk,tv in v["states"].items():
-                            if tv == uuid:
-                                category = 'callerState'
-                                stateName = tk
-                for k,v in config_data.data["autopilot"].items():
-                    if v == uuid:
-                        category = 'autopilot'
-                    if 'states' in v:
-                        for tk,tv in v["states"].items():
-                            if tv == uuid:
-                                category = 'autopilotState'
-                                stateName = tk
-                for k,v in config_data.data["messageCenter"].items():
-                    if v == uuid:
-                        category = 'messageCenter'
-                        stateName = k
-                    if 'states' in v:
-                        for tk,tv in v["states"].items():
-                            if tv == uuid:
-                                category = 'messageCenterState'
-                                stateName = tk
-
-                if uuid in config_data.data["controls"]:
-                    control = config_data.data["controls"][uuid]
-                    category = 'control'
-                    controlName = control["name"]
-                    controlType = control["type"]
-                    if 'room' in control:
-                        roomName = config_data.get_room_name(control["room"])
                 else:
-                    for k,v in config_data.data["controls"].items():
+                    category = 'unknown'
+                    controlName = ''
+                    controlType = ''
+                    stateName = ''
+                    roomName = ''
+                    for k,v in config_data.data["globalStates"].items():
+                        if v == uuid:
+                            category = 'globalState'
+                    for k,v in config_data.data["caller"].items():
+                        if v == uuid:
+                            category = 'caller'
                         if 'states' in v:
                             for tk,tv in v["states"].items():
                                 if tv == uuid:
-                                    category = 'controlState'
-                                    controlName = v["name"]
-                                    controlType = v["type"]
+                                    category = 'callerState'
                                     stateName = tk
-                                    if 'room' in v:
-                                        roomName = config_data.get_room_name(v["room"])
+                    for k,v in config_data.data["autopilot"].items():
+                        if v == uuid:
+                            category = 'autopilot'
+                        if 'states' in v:
+                            for tk,tv in v["states"].items():
+                                if tv == uuid:
+                                    category = 'autopilotState'
+                                    stateName = tk
+                    for k,v in config_data.data["messageCenter"].items():
+                        if v == uuid:
+                            category = 'messageCenter'
+                            stateName = k
+                        if 'states' in v:
+                            for tk,tv in v["states"].items():
+                                if tv == uuid:
+                                    category = 'messageCenterState'
+                                    stateName = tk
 
-                        if 'subControls' in v:
-                            for sk,sv in v["subControls"].items():
-                                if 'states' in sv:
-                                    for stk,stv in sv["states"].items():
-                                        if stv == uuid:
-                                            category = 'subControlState'
-                                            controlName = sv["name"]
-                                            controlType = sv["type"]
-                                            stateName = stk
-                                            if 'room' in v:
-                                                roomName = config_data.get_room_name(v["room"])
+                    if uuid in config_data.data["controls"]:
+                        control = config_data.data["controls"][uuid]
+                        category = 'control'
+                        controlName = control["name"]
+                        controlType = control["type"]
+                        if 'room' in control:
+                            roomName = config_data.get_room_name(control["room"])
+                    else:
+                        for k,v in config_data.data["controls"].items():
+                            if 'states' in v:
+                                for tk,tv in v["states"].items():
+                                    if tv == uuid:
+                                        category = 'controlState'
+                                        controlName = v["name"]
+                                        controlType = v["type"]
+                                        stateName = tk
+                                        if 'room' in v:
+                                            roomName = config_data.get_room_name(v["room"])
 
-                _LOGGER.debug("  uuid: {0} Category: '{1}' Type: '{2}' Room: '{3}' Name: '{4}' state: '{5}' dval: {6}".format(uuid, category, controlType, roomName, controlName, stateName, dval))
+                            if 'subControls' in v:
+                                for sk,sv in v["subControls"].items():
+                                    if 'states' in sv:
+                                        for stk,stv in sv["states"].items():
+                                            if stv == uuid:
+                                                category = 'subControlState'
+                                                controlName = sv["name"]
+                                                controlType = sv["type"]
+                                                stateName = stk
+                                                if 'room' in v:
+                                                    roomName = config_data.get_room_name(v["room"])
+
+                    _LOGGER.debug("  uuid: {0} (VS) Category: '{1}' Type: '{2}' Room: '{3}' Name: '{4}' state: '{5}' dval: {6}".format(uuid, category, controlType, roomName, controlName, stateName, dval))
 
                 x = x + 24
 
@@ -183,68 +189,71 @@ class MessageBody:
                         device = mapentry["device"]
                         stateName = mapentry["stateName"]
 
+                        _LOGGER.debug("SettingTextState {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
+
                         device.set_value(stateName, text)
 
                     except Exception as ex:
                         _LOGGER.error(ex)
 
-                category = 'unknown'
-                controlName = ''
-                controlType = ''
-                stateName = ''
-                for k,v in config_data.data["globalStates"].items():
-                    if v == uuid:
-                        category = 'globalState'
-                for k,v in config_data.data["caller"].items():
-                    if v == uuid:
-                        category = 'caller'
-                    if 'states' in v:
-                        for tk,tv in v["states"].items():
-                            if tv == uuid:
-                                category = 'callerState'
-                                stateName = tk
-                for k,v in config_data.data["autopilot"].items():
-                    if v == uuid:
-                        category = 'autopilot'
-                    if 'states' in v:
-                        for tk,tv in v["states"].items():
-                            if tv == uuid:
-                                category = 'autopilotState'
-                                stateName = tk
-                for k,v in config_data.data["messageCenter"].items():
-                    if v == uuid:
-                        category = 'messageCenter'
-                        stateName = k
-                    if 'states' in v:
-                        for tk,tv in v["states"].items():
-                            if tv == uuid:
-                                category = 'messageCenterState'
-                                stateName = tk
-                if uuid in config_data.data["controls"]:
-                    control = config_data.data["controls"][uuid]
-                    category = 'control'
-                    controlName = control["name"]
-                    controlType = control["type"]
                 else:
-                    for k,v in config_data.data["controls"].items():
+                    category = 'unknown'
+                    controlName = ''
+                    controlType = ''
+                    stateName = ''
+                    for k,v in config_data.data["globalStates"].items():
+                        if v == uuid:
+                            category = 'globalState'
+                    for k,v in config_data.data["caller"].items():
+                        if v == uuid:
+                            category = 'caller'
                         if 'states' in v:
                             for tk,tv in v["states"].items():
                                 if tv == uuid:
-                                    category = 'controlState'
-                                    controlName = v["name"]
-                                    controlType = v["type"]
+                                    category = 'callerState'
                                     stateName = tk
-                        if 'subControls' in v:
-                            for sk,sv in v["subControls"].items():
-                                if 'states' in sv:
-                                    for stk,stv in sv["states"].items():
-                                        if stv == uuid:
-                                            category = 'subControlState'
-                                            controlName = sv["name"]
-                                            controlType = sv["type"]
-                                            stateName = stk
+                    for k,v in config_data.data["autopilot"].items():
+                        if v == uuid:
+                            category = 'autopilot'
+                        if 'states' in v:
+                            for tk,tv in v["states"].items():
+                                if tv == uuid:
+                                    category = 'autopilotState'
+                                    stateName = tk
+                    for k,v in config_data.data["messageCenter"].items():
+                        if v == uuid:
+                            category = 'messageCenter'
+                            stateName = k
+                        if 'states' in v:
+                            for tk,tv in v["states"].items():
+                                if tv == uuid:
+                                    category = 'messageCenterState'
+                                    stateName = tk
+                    if uuid in config_data.data["controls"]:
+                        control = config_data.data["controls"][uuid]
+                        category = 'control'
+                        controlName = control["name"]
+                        controlType = control["type"]
+                    else:
+                        for k,v in config_data.data["controls"].items():
+                            if 'states' in v:
+                                for tk,tv in v["states"].items():
+                                    if tv == uuid:
+                                        category = 'controlState'
+                                        controlName = v["name"]
+                                        controlType = v["type"]
+                                        stateName = tk
+                            if 'subControls' in v:
+                                for sk,sv in v["subControls"].items():
+                                    if 'states' in sv:
+                                        for stk,stv in sv["states"].items():
+                                            if stv == uuid:
+                                                category = 'subControlState'
+                                                controlName = sv["name"]
+                                                controlType = sv["type"]
+                                                stateName = stk
 
-                _LOGGER.debug("  uuid: {0} Category: '{1}' Type: '{2}' Name: '{3}' state: '{4}' uuidIcon: {5} text: {6}".format(uuid, category, controlType, controlName, stateName, uuidIcon, text))
+                    _LOGGER.debug("  uuid: {0} (TS) Category: '{1}' Type: '{2}' Name: '{3}' state: '{4}' uuidIcon: {5} text: {6}".format(uuid, category, controlType, controlName, stateName, uuidIcon, text))
 
                 x = x + 36 + size
                 if rem > 0:

@@ -8,6 +8,7 @@ loxws/loxinfoonlyanalog.py
 loxws/loxinfoonlydigital.py
 loxws/loxiroomcontrollerv2.py
 loxws/loxlightcontrollerv2.py
+loxws/loxclimatecontroller.py
 loxws/loxswitch.py
 loxws/messagebody.py
 loxws/messageheader.py

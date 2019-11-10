@@ -186,7 +186,22 @@ class MessageBody:
                         stateName = mapentry["stateName"]
 
                         if device.device_type == "ClimateController":
-                            _LOGGER.debug("ClimateController {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
+                            _LOGGER.debug("ClimateController {0} {1} device_type: {2} state_name: {3} text: {4}".format(device.id, device.name, device.device_type, mapentry["stateName"], text))
+
+                            if stateName == "controls":
+                                controls = json.loads(text)
+                                for con in controls:
+                                    con_uuid = con['uuid']
+                                    con_demand = con['demand']
+
+                                    _LOGGER.debug("  climate control - uuid: {0} demand: {1}".format(con_uuid, con_demand))
+
+                                    for rck,rcv in config_data.roomcontrollers.items():
+                                        #_LOGGER.debug("     available controller: {0}".format(rck))
+                                        if rck == con_uuid:
+                                            rcv.set_value("demand", con_demand)
+
+
 
                         else:
                             _LOGGER.debug("SettingTextState {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))

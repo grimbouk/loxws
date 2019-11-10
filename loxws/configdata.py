@@ -36,6 +36,10 @@ class ConfigData:
 
                 if v["type"] == 'ClimateController':
                     self.climatecontrollers[k] = LoxClimateController(k, roomName + v["name"], v["type"])
+                    
+                    #_LOGGER.debug("  Map ClimateController {0}".format(k))
+                    #self.fieldmap[k] = {"device": self.climatecontrollers[k], "stateName": tk}
+
                     _LOGGER.debug("  Map states for ClimateController")
                     for tk,tv in v["states"].items():
                         _LOGGER.debug("    state: {0} = {1}".format(tv, tk))

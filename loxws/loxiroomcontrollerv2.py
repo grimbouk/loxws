@@ -69,8 +69,8 @@ class LoxIntelligentRoomControllerV2:
 
             self.async_update()
 
-        if self._device_type == "IRoomControllerV2" and stateName == "prepareState":
-            _LOGGER.debug("{0} [{1}] Heating Mode - state={2}".format(self._id, self._name, value))
+        if self._device_type == "IRoomControllerV2" and stateName == "demand":
+            _LOGGER.debug("{0} [{1}] Demand - state={2}".format(self._id, self._name, value))
             self._hvac_mode = value
 
             self.async_update()

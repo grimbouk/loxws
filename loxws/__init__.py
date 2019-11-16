@@ -9,3 +9,4 @@ from .loxiroomcontrollerv2 import LoxIntelligentRoomControllerV2
 from .loxclimatecontroller import LoxClimateController
 from .loxinfoonlyanalog import LoxInfoOnlyAnalog
 from .loxinfoonlydigital import LoxInfoOnlyDigital
+from .loxjalousie import LoxJalousie

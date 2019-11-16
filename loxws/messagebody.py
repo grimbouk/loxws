@@ -13,6 +13,7 @@ from .loxiroomcontrollerv2 import LoxIntelligentRoomControllerV2
 from .loxinfoonlyanalog import LoxInfoOnlyAnalog
 from .loxinfoonlydigital import LoxInfoOnlyDigital
 from .loxclimatecontroller import LoxClimateController
+from .loxjalousie import LoxJalousie
 
 _LOGGER = logging.getLogger(__name__)
 

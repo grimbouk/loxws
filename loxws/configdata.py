@@ -8,6 +8,7 @@ from .loxiroomcontrollerv2 import LoxIntelligentRoomControllerV2
 from .loxinfoonlyanalog import LoxInfoOnlyAnalog
 from .loxinfoonlydigital import LoxInfoOnlyDigital
 from .loxclimatecontroller import LoxClimateController
+from .loxjalousie import LoxJalousie
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class ConfigData:
         self.devices = {}
         self.scenes = {}
         self.sensors = {}
+        self.covers = {}
         self.roomcontrollers = {}
         self.climatecontrollers = {}
 
@@ -33,6 +35,13 @@ class ConfigData:
                 catName = ''
                 if 'cat' in v:
                     catName = "{0} ".format(self.get_cat_name(v["cat"]))
+
+                if v["type"] == 'Jalousie':
+                    self.covers[k] = LoxJalousie(k, roomName + v["name"], v["type"])
+                    _LOGGER.debug("  Map states for Jalousie")
+                    for tk,tv in v["states"].items():
+                        _LOGGER.debug("    state: {0} = {1}".format(tv, tk))
+                        self.fieldmap[tv] = {"device": self.covers[k], "stateName": tk}
 
                 if v["type"] == 'ClimateController':
                     self.climatecontrollers[k] = LoxClimateController(k, roomName + v["name"], v["type"])

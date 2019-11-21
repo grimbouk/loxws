@@ -37,7 +37,7 @@ class ConfigData:
                     catName = "{0} ".format(self.get_cat_name(v["cat"]))
 
                 if v["type"] == 'Jalousie':
-                    self.covers[k] = LoxJalousie(k, roomName + v["name"], v["type"])
+                    self.covers[k] = LoxJalousie(k, roomName + v["name"], catName, v["type"])
                     _LOGGER.debug("  Map states for Jalousie")
                     for tk,tv in v["states"].items():
                         _LOGGER.debug("    state: {0} = {1}".format(tv, tk))
@@ -69,6 +69,12 @@ class ConfigData:
                         self.fieldmap[tv] = {"device": self.roomcontrollers[k], "stateName": tk}
 
                 if v["type"] == 'InfoOnlyAnalog':
+                    control_format = ""
+                    if 'details' in v:
+                        if 'format' in v["details"]:
+                            control_format = v["details"]["format"]
+                            _LOGGER.debug("    format: {0}".format(control_format))
+
                     self.sensors[k] = LoxInfoOnlyAnalog(k, roomName + v["name"], v["type"])
                     _LOGGER.debug("  Map states for InfoOnlyAnalog")
                     for tk,tv in v["states"].items():

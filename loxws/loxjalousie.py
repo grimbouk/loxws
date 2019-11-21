@@ -5,11 +5,10 @@ _LOGGER = logging.getLogger(__name__)
 class LoxJalousie:
     """Class for node abstraction."""
 
-    def __init__(self, id, name, cat, details, device_type):
+    def __init__(self, id, name, cat, device_type):
         self._id = id
         self._name = name
         self._cat = cat
-        self._details = details
         self._device_type = device_type
         self._position = False
         self.async_callbacks = []
@@ -45,7 +44,7 @@ class LoxJalousie:
 
     def async_update(self):
         for async_signal_update in self.async_callbacks:
-            _LOGGER.debug("{0} [{1}] async_update() state={2}".format(self._id, self._name, self._state))
+            _LOGGER.debug("{0} [{1}] async_update() state={2}".format(self._id, self._name, self._position))
             async_signal_update()
 
     def set_value(self, stateName, value):

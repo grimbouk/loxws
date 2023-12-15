@@ -1,8 +1,8 @@
 Metadata-Version: 2.1
 Name: loxws
-Version: 0.0.25
+Version: 0.0.53
 Summary: Loxone Client
-Home-page: https://github.com/tsmith/loxws
+Home-page: https://github.com/grimbouk/loxws
 Author: tjsmithuk
 Author-email: tsmith@clamfish.com
 License: UNKNOWN

@@ -5,10 +5,14 @@ _LOGGER = logging.getLogger(__name__)
 class LoxDimmer:
     """Class for node abstraction."""
 
-    def __init__(self, id, name, device_type):
+    def __init__(self, id, name, device_type, room, cat, details={}):
+        #_LOGGER.debug("{0} init".format(id))
         self._id = id
         self._name = name
         self._device_type = device_type
+        self._room = room
+        self._cat = cat
+        self._details = details
         self._state = False
         self._brightness = 0
         self._color_temp = None
@@ -37,14 +41,28 @@ class LoxDimmer:
 
     @property
     def name(self):
-        return self._name
+        return self._room + " " + self._name
 
     @property
     def device_type(self):
         return self._device_type
 
     @property
-    def manufacturername(self):
+    def room(self):
+        #_LOGGER.debug("{0} room={1}".format(self._id, self._room))
+        return self._room
+
+    @property
+    def category(self):
+        return self._cat
+
+    @property
+    def details(self):
+        return self._details
+
+    @property
+    def manufacturer_name(self):
+        #_LOGGER.debug("{0} manufacturer_name={1}".format(self._id, 'Loxone'))
         return 'Loxone'    
 
     @property
@@ -80,7 +98,7 @@ class LoxDimmer:
 
     def set_value(self, stateName, value):
         if self._device_type == "Switch" and stateName == "active":
-            _LOGGER.debug("{0} {1} Set Switch - active={2}".format(self._id, self._name, value))
+            _LOGGER.debug("id:'{0}', name:'{1}', [Set Switch] - active={2}".format(self._id, self._name, value))
             if value == 1: 
                 self._state = True
                 self._brightness = 255
@@ -92,7 +110,7 @@ class LoxDimmer:
             self.async_update()
 
         elif self._device_type == "Dimmer" and stateName == "position":
-            _LOGGER.debug("{0} {1} Set Dimmer - position={2}".format(self._id, self._name, value))
+            _LOGGER.debug("id:'{0}', name:'{1}', [Set Dimmer] - position={2}".format(self._id, self._name, value))
             self._brightness = value * 2.55
             if value > 0:
                 self._state = True
@@ -103,4 +121,4 @@ class LoxDimmer:
             self.async_update()
 
         else:
-            _LOGGER.debug("{0} {1} NotSet {2} - {3}={4}".format(self._id, self._name, self._device_type, stateName, value))
+            _LOGGER.debug("id:'{0}', name:'{1}', [ValueNotSet {2}] - {3}={4}".format(self._id, self._name, self._device_type, stateName, value))

@@ -10,3 +10,8 @@ from .loxclimatecontroller import LoxClimateController
 from .loxinfoonlyanalog import LoxInfoOnlyAnalog
 from .loxinfoonlydigital import LoxInfoOnlyDigital
 from .loxjalousie import LoxJalousie
+from .loxmeter import LoxMeter
+from .loxpresencedetector import LoxPresenceDetector
+from .loxalarmclock import LoxAlarmClock
+from .loxwindow import LoxWindow
+from .loxgate import LoxGate

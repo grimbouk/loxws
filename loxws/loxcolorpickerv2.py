@@ -5,10 +5,14 @@ _LOGGER = logging.getLogger(__name__)
 class LoxColorPickerV2:
     """Class for node abstraction."""
 
-    def __init__(self, id, name, device_type):
+    def __init__(self, id, name, device_type, room, cat, details):
+        #_LOGGER.debug("{0} init".format(id))
         self._id = id
         self._name = name
         self._device_type = device_type
+        self._room = room
+        self._cat = cat
+        self._details = details
         self._state = False
         self._brightness = 0
         self._color_temp = None
@@ -21,14 +25,28 @@ class LoxColorPickerV2:
 
     @property
     def name(self):
-        return self._name
+        return self._room + " " + self._name
 
     @property
     def device_type(self):
         return self._device_type
 
     @property
-    def manufacturername(self):
+    def room(self):
+        #_LOGGER.debug("{0} room={1}".format(self._id, self._room))
+        return self._room
+
+    @property
+    def category(self):
+        return self._cat
+
+    @property
+    def details(self):
+        return self._details
+
+    @property
+    def manufacturer_name(self):
+        #_LOGGER.debug("{0} manufacturer_name={1}".format(self._id, 'Loxone'))
         return 'Loxone'    
 
     @property
@@ -64,7 +82,7 @@ class LoxColorPickerV2:
 
     def set_value(self, stateName, value):
         if self._device_type == "ColorPickerV2" and stateName == "color":
-            _LOGGER.debug("{0} {1} Set ColorPickerV2 - color={2}".format(self._id, self._name, value))
+            _LOGGER.debug("id:'{0}', name:'{1}', [Set ColorPickerV2] - color={2}".format(self._id, self._name, value))
 
             if value.startswith("hsv"):
                 #hsv(0,0,100)
@@ -97,8 +115,8 @@ class LoxColorPickerV2:
             #_LOGGER.debug("Update ColorPickerV2: {0}".format(self._name))
             self.async_update()
         elif self._device_type == "LightControllerV2" and stateName == "moodList":
-            _LOGGER.debug("{0} {1} Set {2} - {3}={4}".format(self._id, self._name, self._device_type, stateName, value))
+            _LOGGER.debug("id:'{0}', name:'{1}', [SetValue {2}] - {3}={4}".format(self._id, self._name, self._device_type, stateName, value))
             #device.add_modes(value)
 
         else:
-            _LOGGER.debug("{0} {1} NotSet {2} - {3}={4}".format(self._id, self._name, self._device_type, stateName, value))
+            _LOGGER.debug("id:'{0}', name:'{1}', [ValueNotSet {2}] - {3}={4}".format(self._id, self._name, self._device_type, stateName, value))

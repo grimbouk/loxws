@@ -26,6 +26,7 @@ class Miniserver:
 
     def __init__(self, host=None, port=None, username=None, password=None, publickey=None, privatekey=None, key=None, iv=None):
         """Initialize Miniserver class."""
+        _LOGGER.debug("__init__")
         self.host = host
         self.port = port
         self.username = username
@@ -34,7 +35,8 @@ class Miniserver:
         self.message_body = None
         self.client_salt_count = 0
         self.client_salt = self.generate_client_salt()
-        self.public_key = RSA.importKey(publickey)
+        #self.public_key = RSA.importKey(publickey)
+        self.public_key = self.get_publickey(publickey)
         self.private_key = privatekey
         self.key = key
         self.iv = iv
@@ -44,7 +46,7 @@ class Miniserver:
 
     def connect(self, loop, connection_status):
         """Connect to the miniserver."""
-        _LOGGER.debug("connect")
+        _LOGGER.debug("connect v0.0.49")
         from .wsclient import WSClient
         self.loop = loop
         self.async_connection_status_callback = connection_status
@@ -89,6 +91,7 @@ class Miniserver:
 
             if "keyexchange" in self.message_body.control:
                 _LOGGER.debug('PROCESS keyexchange response')
+                _LOGGER.debug(self.message_body.raw)
                 command = "jdev/sys/getkey2/" + self.username
                 _LOGGER.debug("SEND COMMAND: " + command)
                 self.wsclient.send(self.encrypt_command(command))
@@ -96,18 +99,18 @@ class Miniserver:
             elif "getkey2" in self.message_body.control:
                 _LOGGER.debug('PROCESS getkey2 response')
                 self.server_key = self.message_body.msg["LL"]["value"]["key"]
-                #_LOGGER.debug("  server_key: {0} {1}".format(type(self.server_key), self.server_key))
+                _LOGGER.debug("  server_key: {0} {1}".format(type(self.server_key), self.server_key))
                 self.server_salt = self.message_body.msg["LL"]["value"]["salt"]
-                #_LOGGER.debug("  server_salt: {0} {1}".format(type(self.server_salt), self.server_salt))
+                _LOGGER.debug("  server_salt: {0} {1}".format(type(self.server_salt), self.server_salt))
 
-                #_LOGGER.debug('  Hash user password')
+                _LOGGER.debug('  Hash user password')
                 hash_sha = SHA1.new()
                 hash_sha.update(bytes('{0}:{1}'.format(
                     self.password,
                     self.server_salt),'utf-8'))
                 pwhash = hash_sha.hexdigest().upper()
 
-                #_LOGGER.debug('  Hash credential')
+                _LOGGER.debug('  Hash credential')
                 hash_hmac = HMAC.new(binascii.a2b_hex(self.server_key), digestmod=SHA1)
                 hash_hmac.update(bytes('{0}:{1}'.format(
                     self.username,
@@ -167,6 +170,18 @@ class Miniserver:
             self.wsclient.send(command) 
 
     def encrypt_command(self, command):
+        _LOGGER.debug('encrypt_command()')
+        #_new_aes = AES.new(self._key, AES.MODE_CBC, self._iv)
+        #aes_cipher = self.get_new_aes_chiper()
+        #encrypted = aes_cipher.encrypt(s)
+        #encoded = b64encode(encrypted)
+        #encoded_url = req.pathname2url(encoded.decode("utf-8"))
+
+
+
+
+
+
         salted_command = "salt/{0}/{1}".format(self.client_salt, command) 
         _LOGGER.debug("  salted_command: {0}".format(salted_command))
 
@@ -179,7 +194,7 @@ class Miniserver:
         padding_len = AES.block_size - (length % AES.block_size)
         #_LOGGER.debug("  padding_len: {0} {1}".format(type(padding_len), padding_len))
         padding = "\x00" * padding_len
-        #_LOGGER.debug("  salted_command: {0} {1}".format(type(salted_command), salted_command))
+        _LOGGER.debug("  salted_command: {0} {1}".format(type(salted_command), salted_command))
         #_LOGGER.debug("  padding: {0} {1}".format(type(padding), padding))
         padded_salted_command = salted_command + padding
 
@@ -194,10 +209,10 @@ class Miniserver:
         #_LOGGER.debug("  b64enc_quote: {0} {1}".format(type(b64enc_quote), b64enc_quote))
 
         urlencoded = urllib.parse.quote(b64enc, safe='')
-        #_LOGGER.debug("  urlencoded: {0} {1}".format(type(urlencoded), urlencoded))
+        _LOGGER.debug("  urlencoded: {0} {1}".format(type(urlencoded), urlencoded))
 
         encrypted_command = "jdev/sys/fenc/{0}".format(urlencoded) #.encode('utf8')
-        #_LOGGER.debug("  encrypted_command: {0}".format(encrypted_command))
+        _LOGGER.debug("  encrypted_command: {0}".format(encrypted_command))
 
         return encrypted_command
     
@@ -222,9 +237,13 @@ class Miniserver:
         return str(r,'utf8')
 
     def generate_client_salt(self):
-        #_LOGGER.debug("Generate Client Salt")
+        _LOGGER.debug("Generate Client Salt")
         self.client_salt_count = self.client_salt_count + 1
         salt = format(str(self.client_salt_count), "a>4s") + "123e"
         #salt = "123e"
         _LOGGER.debug("  salt = " + salt)
         return salt
+
+    def get_publickey(self, publickey):
+        _LOGGER.debug("Get PublicKey")
+        return RSA.importKey(publickey)

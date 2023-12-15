@@ -1,6 +1,7 @@
 import json
 import logging
 import datetime
+import traceback
 from base64 import b64decode, b64encode
 from binascii import a2b_hex, b2a_hex
 from struct import *
@@ -78,12 +79,13 @@ class MessageBody:
                         device = mapentry["device"]
                         stateName = mapentry["stateName"]
 
-                        _LOGGER.debug("SettingValueState {0} {1} device_type: {2} state_name: {3}".format(device.id, device.name, device.device_type, mapentry["stateName"]))
+                        _LOGGER.debug("id:'{0}', name:'{1}', [SettingValueState] device_type:'{2}' state_name:'{3}'".format(device.id, device.name, device.device_type, mapentry["stateName"]))
 
                         device.set_value(stateName, dval)
 
                     except Exception as ex:
                         _LOGGER.error(ex)
+                        _LOGGER.error(traceback.format_exc())
 
                 else:
                     category = 'unknown'
@@ -180,7 +182,7 @@ class MessageBody:
 
                 if uuid in config_data.fieldmap:
                     try:
-                        #_LOGGER.debug("UUID in field map")
+                        _LOGGER.debug("UUID in field map")
                         mapentry = config_data.fieldmap[uuid]
 
                         device = mapentry["device"]

@@ -20,7 +20,7 @@ class WSClient:
 
     def __init__(self, loop, host, port, username, password, async_session_callback, async_message_callback):
         """init"""
-        #_LOGGER.debug("__init__")
+        _LOGGER.debug("__init__")
         self.loop = loop
         self.session = None
         self.ws = None
@@ -58,6 +58,7 @@ class WSClient:
     async def running(self):
         """Start websocket connection."""
         _LOGGER.debug("running")
+        #url = "wss://{0}:{1}/ws/rfc6455".format(self.host, self.port)
         url = "ws://{0}:{1}/ws/rfc6455".format(self.host, self.port)
         #url = "ws://192.168.1.10:8080"
         _LOGGER.debug('  url: {0}'.format(url))

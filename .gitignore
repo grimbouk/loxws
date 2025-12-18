@@ -1,2 +1,7 @@
-build/lib/loxws/
-dist/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.idea/
+.DS_Store
+

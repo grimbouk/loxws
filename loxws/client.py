@@ -99,7 +99,7 @@ class LoxoneClient:
         await self._auth.async_get_token()
         await self._ws.send_str(command)
 
-    async def async_get_json(self, path: str) -> Any:
+    async def async_get_json(self, path: str, *, _retried: bool = False) -> Any:
         """Perform an authenticated HTTP GET returning JSON payload."""
 
         token = await self._auth.async_get_token()
@@ -108,9 +108,14 @@ class LoxoneClient:
 
         async with self._session.get(url, headers=headers) as resp:
             if resp.status == 401:
+                if _retried:
+                    raise LoxoneAuthError(
+                        f"Authentication failed when fetching {path} after refreshing token"
+                    )
+
                 # Token expired, re-auth and retry once
                 await self._auth.async_refresh_token()
-                return await self.async_get_json(path)
+                return await self.async_get_json(path, _retried=True)
 
             if resp.status != 200:
                 raise LoxoneAuthError(f"Unexpected HTTP status {resp.status} when fetching {path}")

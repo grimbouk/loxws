@@ -27,7 +27,7 @@ jobs:
 
       - name: Set CI package version
         run: |
-          VERSION="0.0.${{ github.run_number }}"
+          VERSION="0.0.${{ github.run_id }}.post${{ github.run_attempt }}"
           export LOXWS_VERSION="${VERSION}"
           echo "LOXWS_VERSION=${VERSION}" >> "$GITHUB_ENV"
           printf '__version__ = "%s"\n' "${LOXWS_VERSION}" > loxws/_version.py

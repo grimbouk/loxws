@@ -6,6 +6,8 @@ import asyncio
 import binascii
 import logging
 import os
+import re
+import ssl
 import urllib.parse
 import uuid
 from base64 import b64decode, b64encode
@@ -24,6 +26,8 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TOKEN_PERMISSIONS = "4"
 DEFAULT_CLIENT_INFO = "Home Assistant Loxone"
+
+
 class Miniserver:
     """Loxone Miniserver client with token/JWT auth over websocket."""
 
@@ -58,6 +62,7 @@ class Miniserver:
         self._server_salt = None
         self._hash_alg = "sha256"
         self._token = None
+        self._http_ssl_param = None
 
         self.ready = asyncio.Event()
         self._handshake_lock = asyncio.Lock()
@@ -128,24 +133,50 @@ class Miniserver:
     async def _async_get_public_key(self) -> str:
         scheme = "https" if self.use_tls else "http"
         url = f"{scheme}://{self.host}:{self.port}/jdev/sys/getPublicKey"
-        ssl_ctx = None
-        if self.use_tls and not self.verify_tls:
-            import ssl
-
-            ssl_ctx = ssl.create_default_context()
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = ssl.CERT_NONE
+        ssl_param = await self._async_http_ssl_param()
 
         timeout = aiohttp.ClientTimeout(total=10)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url, ssl=ssl_ctx) as response:
+            async with session.get(url, ssl=ssl_param) as response:
                 response.raise_for_status()
                 payload = await response.json(content_type=None)
 
-        key_value = payload["LL"]["value"]
-        if "BEGIN" in key_value:
-            return key_value
-        return f"-----BEGIN PUBLIC KEY-----\n{key_value}\n-----END PUBLIC KEY-----"
+        raw_value = payload.get("LL", {}).get("value")
+        return self._normalize_public_key(raw_value)
+
+    async def _async_http_ssl_param(self):
+        if not self.use_tls:
+            return None
+        if not self.verify_tls:
+            # keep HTTPS transport but disable cert validation for local/self-signed setups
+            return False
+        if self._http_ssl_param is None:
+            self._http_ssl_param = await asyncio.to_thread(ssl.create_default_context)
+        return self._http_ssl_param
+
+    @staticmethod
+    def _normalize_public_key(raw_value):
+        if isinstance(raw_value, dict):
+            raw_value = raw_value.get("key") or raw_value.get("publicKey") or raw_value.get("value")
+        if not isinstance(raw_value, str):
+            raise ValueError("getPublicKey did not return a string value")
+
+        key_text = raw_value.strip().replace("\\r", "").replace("\\n", "\n")
+        if not key_text:
+            raise ValueError("getPublicKey returned an empty key")
+
+        # Normalize PEM bodies that are in one line or contain extra whitespace.
+        for marker in ("PUBLIC KEY", "RSA PUBLIC KEY", "CERTIFICATE"):
+            begin = f"-----BEGIN {marker}-----"
+            end = f"-----END {marker}-----"
+            if begin in key_text and end in key_text:
+                body = key_text.split(begin, 1)[1].split(end, 1)[0]
+                body = re.sub(r"\s+", "", body)
+                return f"{begin}\n{body}\n{end}"
+
+        # Handle responses that only return the key body.
+        key_body = re.sub(r"\s+", "", key_text)
+        return f"-----BEGIN PUBLIC KEY-----\n{key_body}\n-----END PUBLIC KEY-----"
 
     def _prepare_session_crypto(self):
         self._aes_key_hex = os.urandom(32).hex()

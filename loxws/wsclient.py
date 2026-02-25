@@ -46,6 +46,7 @@ class WSClient:
         self.async_session_handler_callback = async_session_callback
         self.async_message_handler_callback = async_message_callback
         self._retry_handle = None
+        self._ssl_param = None
 
     @property
     def state(self):
@@ -70,12 +71,13 @@ class WSClient:
 
         try:
             await self._async_close()
+            ssl_param = await self._resolve_ssl_param()
             timeout = aiohttp.ClientTimeout(total=None, sock_connect=10, sock_read=None)
             self.session = aiohttp.ClientSession(timeout=timeout)
             self.ws = await self.session.ws_connect(
                 url,
                 protocols=("remotecontrol",),
-                ssl=self._ssl_context(),
+                ssl=ssl_param,
                 heartbeat=30,
                 autoping=True,
             )
@@ -133,14 +135,15 @@ class WSClient:
             self._retry_handle = None
         self.loop.create_task(self._async_close())
 
-    def _ssl_context(self):
+    async def _resolve_ssl_param(self):
         if not self.use_tls:
             return None
-        ctx = ssl.create_default_context()
         if not self.verify_tls:
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-        return ctx
+            # keep TLS transport but disable cert validation for local/self-signed setups
+            return False
+        if self._ssl_param is None:
+            self._ssl_param = await asyncio.to_thread(ssl.create_default_context)
+        return self._ssl_param
 
     async def _async_close(self):
         if self.ws is not None:

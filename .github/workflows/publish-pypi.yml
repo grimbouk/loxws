@@ -30,14 +30,8 @@ jobs:
           VERSION="0.0.${{ github.run_number }}"
           export LOXWS_VERSION="${VERSION}"
           echo "LOXWS_VERSION=${VERSION}" >> "$GITHUB_ENV"
-          python - <<'PY'
-import os
-from pathlib import Path
-
-version = os.environ["LOXWS_VERSION"]
-Path("loxws/_version.py").write_text(f'__version__ = "{version}"\n', encoding="utf-8")
-print(f"Using package version: {version}")
-PY
+          printf '__version__ = "%s"\n' "${LOXWS_VERSION}" > loxws/_version.py
+          echo "Using package version: ${LOXWS_VERSION}"
 
       - name: Build distributions
         run: |

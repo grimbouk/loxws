@@ -123,9 +123,19 @@ class WSClient:
     def send(self, message):
         """Send a text websocket message."""
         if self.state == STATE_RUNNING and self.ws is not None and not self.ws.closed:
-            self.loop.create_task(self.ws.send_str(message))
+            self.loop.create_task(self._safe_send(message))
         else:
             _LOGGER.debug("Drop send while websocket not ready: %s", message)
+
+    async def _safe_send(self, message):
+        """Send a frame while suppressing expected close-race errors."""
+        try:
+            if self.ws is None or self.ws.closed:
+                _LOGGER.debug("Drop send while websocket not ready: %s", message)
+                return
+            await self.ws.send_str(message)
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.debug("Ignoring websocket send error on closing transport: %s", err)
 
     def stop(self):
         """Close websocket connection and stop reconnects."""

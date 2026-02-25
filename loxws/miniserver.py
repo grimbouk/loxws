@@ -13,7 +13,7 @@ import uuid
 from base64 import b64decode, b64encode
 
 import aiohttp
-from Crypto.Cipher import AES, PKCS1_v1_5
+from Crypto.Cipher import AES, PKCS1_OAEP, PKCS1_v1_5
 from Crypto.PublicKey import RSA
 
 from .auth import build_auth_hash, hash_password, normalize_hash_algorithm
@@ -26,6 +26,18 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TOKEN_PERMISSIONS = "4"
 DEFAULT_CLIENT_INFO = "Home Assistant Loxone"
+
+KEYEXCHANGE_MODES = ("pkcs1_v1_5_raw", "pkcs1_v1_5_url", "oaep_raw", "oaep_url")
+AUTH_MODES = (
+    ("getjwt", "server", "4"),
+    ("gettoken", "server", "4"),
+    ("getjwt", "server", "2"),
+    ("gettoken", "server", "2"),
+    ("getjwt", "sha1", "4"),
+    ("gettoken", "sha1", "4"),
+    ("getjwt", "sha256", "4"),
+    ("gettoken", "sha256", "4"),
+)
 
 
 class Miniserver:
@@ -56,13 +68,19 @@ class Miniserver:
         self.config_data = None
 
         self.public_key = None
+        self._public_key_pem = None
         self._aes_key_hex = None
         self._aes_iv_hex = None
+        self._command_salt = None
         self._server_key = None
         self._server_salt = None
-        self._hash_alg = "sha256"
+        self._server_hash_alg = "sha256"
         self._token = None
         self._http_ssl_param = None
+        self._waiting_auth = False
+
+        self._keyexchange_mode = KEYEXCHANGE_MODES[0]
+        self._auth_mode_idx = 0
 
         self.ready = asyncio.Event()
         self._handshake_lock = asyncio.Lock()
@@ -122,15 +140,23 @@ class Miniserver:
         async with self._handshake_lock:
             try:
                 self._prepare_session_crypto()
-                public_key = await self._async_get_public_key()
-                self.public_key = RSA.import_key(public_key)
-                command = f"jdev/sys/keyexchange/{self._encrypted_session_key()}"
-                _LOGGER.debug("SEND keyexchange")
-                self.wsclient.send(command)
+                if self.public_key is None:
+                    public_key = await self._async_get_public_key()
+                    self.public_key = RSA.import_key(public_key)
+
+                ws = getattr(self.wsclient, "ws", None)
+                if ws is None or ws.closed:
+                    _LOGGER.debug("Skip keyexchange send because websocket is not ready")
+                    return
+
+                self.wsclient.send(f"jdev/sys/keyexchange/{self._encrypted_session_key()}")
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.error("Handshake start failed: %s", err)
 
     async def _async_get_public_key(self) -> str:
+        if isinstance(self._public_key_pem, str) and self._public_key_pem:
+            return self._public_key_pem
+
         scheme = "https" if self.use_tls else "http"
         url = f"{scheme}://{self.host}:{self.port}/jdev/sys/getPublicKey"
         ssl_param = await self._async_http_ssl_param()
@@ -142,7 +168,8 @@ class Miniserver:
                 payload = await response.json(content_type=None)
 
         raw_value = payload.get("LL", {}).get("value")
-        return self._normalize_public_key(raw_value)
+        self._public_key_pem = self._normalize_public_key(raw_value)
+        return self._public_key_pem
 
     async def _async_http_ssl_param(self):
         if not self.use_tls:
@@ -179,15 +206,78 @@ class Miniserver:
         return f"-----BEGIN PUBLIC KEY-----\n{key_body}\n-----END PUBLIC KEY-----"
 
     def _prepare_session_crypto(self):
-        self._aes_key_hex = os.urandom(32).hex()
+        # Loxone keyexchange uses AES-128 key + IV as hex in RSA payload.
+        self._aes_key_hex = os.urandom(16).hex()
         self._aes_iv_hex = os.urandom(16).hex()
+        self._command_salt = None
+        self._waiting_auth = False
 
     def _encrypted_session_key(self):
         payload = f"{self._aes_key_hex}:{self._aes_iv_hex}".encode("utf-8")
-        cipher = PKCS1_v1_5.new(self.public_key)
+
+        mode = self._keyexchange_mode
+        if mode.startswith("oaep"):
+            cipher = PKCS1_OAEP.new(self.public_key)
+        else:
+            cipher = PKCS1_v1_5.new(self.public_key)
+
         encrypted = cipher.encrypt(payload)
         session_key = b64encode(encrypted).decode("utf-8")
-        return urllib.parse.quote(session_key, safe="")
+        if mode.endswith("_url"):
+            return urllib.parse.quote(session_key, safe="")
+        return session_key
+
+    def _send_auth_command(self, endpoint: str, hash_mode: str, permissions: str) -> bool:
+        if not self._server_key or not self._server_salt:
+            return False
+
+        effective_alg = self._server_hash_alg if hash_mode == "server" else hash_mode
+        try:
+            password_hash = hash_password(self.password, self._server_salt, effective_alg)
+            auth_hash = build_auth_hash(self.username, password_hash, self._server_key, effective_alg)
+        except Exception as err:  # pylint: disable=broad-except
+            _LOGGER.debug(
+                "Failed building auth command (%s/%s/%s): %s",
+                endpoint,
+                effective_alg,
+                permissions,
+                err,
+            )
+            return False
+
+        info = urllib.parse.quote(self.client_info, safe="")
+        if endpoint == "gettoken":
+            command = (
+                f"jdev/sys/gettoken/{auth_hash}/{self.username}/"
+                f"{permissions}/{self.client_uuid}/{info}"
+            )
+        else:
+            command = (
+                f"jdev/sys/getjwt/{auth_hash}/{self.username}/"
+                f"{permissions}/{self.client_uuid}/{info}"
+            )
+
+        self._waiting_auth = True
+        _LOGGER.debug(
+            "Sending auth endpoint='%s' hash_alg='%s' permissions='%s' (mode='%s')",
+            endpoint,
+            effective_alg,
+            permissions,
+            hash_mode,
+        )
+        self.wsclient.send(self.encrypt_command(command))
+        return True
+
+    def _send_next_auth_mode(self) -> bool:
+        idx = int(self._auth_mode_idx)
+        if idx >= len(AUTH_MODES):
+            _LOGGER.debug("All auth modes exhausted without success")
+            self._waiting_auth = False
+            return False
+
+        endpoint, hash_mode, permissions = AUTH_MODES[idx]
+        self._auth_mode_idx = idx + 1
+        return self._send_auth_command(endpoint, hash_mode, permissions)
 
     def async_message_handler(self, message, is_binary):
         try:
@@ -219,13 +309,6 @@ class Miniserver:
             self.wsclient.send(self.encrypt_command("jdev/sps/enablebinstatusupdate"))
 
     def _process_text_message(self, message):
-        decoded = message
-        if not message.startswith("{"):
-            decrypted = self.decrypt_message(message)
-            if decrypted is None:
-                return
-            decoded = decrypted
-
         if self.message_header is None:
             # Fallback header for text responses if no preceding header was parsed.
             class _FallbackHeader:
@@ -233,50 +316,87 @@ class Miniserver:
 
             self.message_header = _FallbackHeader()
 
+        decoded = message
+        if not isinstance(message, str) or not message.startswith("{"):
+            decrypted = self.decrypt_message(message)
+            if decrypted is None:
+                return
+            decoded = decrypted
+
         self.message_body = MessageBody(decoded, False, self.message_header, self.config_data)
         control = getattr(self.message_body, "control", "")
-        code = str(self.message_body.msg.get("LL", {}).get("Code", self.message_body.msg.get("LL", {}).get("code", "")))
-        value = self.message_body.msg.get("LL", {}).get("value")
+        ll = self.message_body.msg.get("LL", {}) if isinstance(self.message_body.msg, dict) else {}
+        code = str(ll.get("Code", ll.get("code", "")))
+        value = ll.get("value")
+
+        if control:
+            _LOGGER.debug("Processed websocket control='%s' code='%s'", control, code)
 
         if "keyexchange" in control:
-            _LOGGER.debug("PROCESS keyexchange response (code=%s)", code)
-            command = f"jdev/sys/getkey2/{self.username}"
-            self.wsclient.send(self.encrypt_command(command))
+            if code == "401":
+                try:
+                    idx = KEYEXCHANGE_MODES.index(self._keyexchange_mode)
+                except ValueError:
+                    idx = 0
+                self._keyexchange_mode = KEYEXCHANGE_MODES[(idx + 1) % len(KEYEXCHANGE_MODES)]
+                _LOGGER.debug(
+                    "Keyexchange rejected with 401 using mode '%s'; next reconnect will try '%s'",
+                    KEYEXCHANGE_MODES[idx],
+                    self._keyexchange_mode,
+                )
+                return
+
+            self.wsclient.send(self.encrypt_command(f"jdev/sys/getkey2/{self.username}"))
             return
 
         if "getkey2" in control:
-            _LOGGER.debug("PROCESS getkey2 response (code=%s)", code)
-            self._server_key = value["key"]
-            self._server_salt = value["salt"]
-            self._hash_alg = normalize_hash_algorithm(value.get("hashAlg"))
-            pw_hash = hash_password(self.password, self._server_salt, self._hash_alg)
-            auth_hash = build_auth_hash(self.username, pw_hash, self._server_key, self._hash_alg)
-            info = urllib.parse.quote(self.client_info, safe="")
-            command = (
-                f"jdev/sys/getjwt/{auth_hash}/{self.username}/"
-                f"{DEFAULT_TOKEN_PERMISSIONS}/{self.client_uuid}/{info}"
+            if not isinstance(value, dict):
+                return
+
+            self._server_key = value.get("key")
+            self._server_salt = value.get("salt")
+            raw_alg = value.get("hashAlg", value.get("hashalg"))
+            self._server_hash_alg = normalize_hash_algorithm(raw_alg)
+            _LOGGER.debug(
+                "getkey2 hash algorithm raw='%s' effective='%s'",
+                raw_alg,
+                self._server_hash_alg,
             )
-            self.wsclient.send(self.encrypt_command(command))
+            self._send_next_auth_mode()
             return
 
-        if "getjwt" in control:
-            _LOGGER.debug("PROCESS getjwt response (code=%s)", code)
+        if "getjwt" in control or "gettoken" in control:
+            self._waiting_auth = False
             if code != "200":
-                _LOGGER.error("JWT acquisition failed: %s", self.message_body.raw)
+                _LOGGER.debug(
+                    "Auth endpoint rejected (control='%s' code=%s); next reconnect uses auth mode index=%s",
+                    control,
+                    code,
+                    self._auth_mode_idx,
+                )
                 return
+
+            self._auth_mode_idx = 0
             self._token = value.get("token") if isinstance(value, dict) else None
             self._authenticated = True
             self.wsclient.send("data/LoxAPP3.json")
             return
 
+        if "jdev/sys/fenc/" in control and code == "401" and not self._authenticated:
+            if self._waiting_auth:
+                self._waiting_auth = False
+                _LOGGER.debug(
+                    "Encrypted auth response 401; next reconnect uses auth mode index=%s",
+                    self._auth_mode_idx,
+                )
+            return
+
         if "LoxAPP3.json" in control:
-            _LOGGER.debug("PROCESS LoxAPP3 response")
             self.config_data = ConfigData(self.message_body.msg)
             self.wsclient.send(self.encrypt_command("jdev/sps/enablebinstatusupdate"))
             return
 
         if "enablebinstatusupdate" in control:
-            _LOGGER.debug("PROCESS enablebinstatusupdate response (code=%s)", code)
             self.ready.set()
             self.async_connection_status_callback(True)
             return
@@ -298,16 +418,20 @@ class Miniserver:
         if self._aes_key_hex is None or self._aes_iv_hex is None:
             raise RuntimeError("Session key/iv is not initialized")
 
-        salt = os.urandom(2).hex()
-        salted_command = f"salt/{salt}/{command}"
+        next_salt = os.urandom(2).hex()
+        if self._command_salt is None:
+            salted_command = f"salt/{next_salt}/{command}"
+        else:
+            salted_command = f"nextSalt/{self._command_salt}/{next_salt}/{command}"
+        self._command_salt = next_salt
 
         key = binascii.unhexlify(self._aes_key_hex)
         iv = binascii.unhexlify(self._aes_iv_hex)
         cipher_aes = AES.new(key, AES.MODE_CBC, iv)
 
         padding_len = AES.block_size - (len(salted_command) % AES.block_size)
-        padded_salted_command = salted_command + ("\x00" * padding_len)
-        encrypted = cipher_aes.encrypt(padded_salted_command.encode("utf-8"))
+        padded_command = salted_command + ("\x00" * padding_len)
+        encrypted = cipher_aes.encrypt(padded_command.encode("utf-8"))
         encoded = b64encode(encrypted)
         urlencoded = urllib.parse.quote(encoded, safe="")
         return f"jdev/sys/fenc/{urlencoded}"

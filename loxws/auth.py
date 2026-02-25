@@ -10,13 +10,14 @@ import hmac
 def normalize_hash_algorithm(hash_alg: str | None) -> str:
     """Normalize supported algorithm labels to hashlib names."""
     if not hash_alg:
-        return "sha256"
+        # Some legacy responses omit hashAlg; SHA1 is the safe fallback.
+        return "sha1"
     normalized = hash_alg.strip().lower()
     if normalized in {"sha1", "sha-1"}:
         return "sha1"
     if normalized in {"sha256", "sha-256"}:
         return "sha256"
-    raise ValueError(f"Unsupported hash algorithm: {hash_alg}")
+    return "sha1"
 
 
 def hash_password(password: str, user_salt: str, hash_alg: str) -> str:

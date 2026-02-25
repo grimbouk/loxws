@@ -19,7 +19,7 @@ Each commit push publishes automatically.
 ### Release flow
 
 1. Commit and push.
-2. GitHub Actions generates version `0.0.<run_id>.post<run_attempt>`.
+2. GitHub Actions computes the next `0.0.N` by checking existing PyPI releases (with local `_version.py` as fallback baseline).
 3. The workflow updates `loxws/_version.py` for the build, builds distributions, and publishes to PyPI.
 
 `setup.py` reads version from `loxws/_version.py` and supports CI override via `LOXWS_VERSION`.

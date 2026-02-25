@@ -12,7 +12,10 @@ class LoxGate:
         self._room = room
         self._cat = cat
         self._details = details
-        self._position = False
+        self._position = 0.0
+        self._active = 0
+        self._prevent_open = 0
+        self._prevent_close = 0
         self.async_callbacks = []
             
     @property
@@ -48,6 +51,26 @@ class LoxGate:
     def position(self):
         return self._position
 
+    @property
+    def active(self):
+        return self._active
+
+    @property
+    def prevent_open(self):
+        return self._prevent_open
+
+    @property
+    def prevent_close(self):
+        return self._prevent_close
+
+    @property
+    def is_opening(self):
+        return self._active > 0
+
+    @property
+    def is_closing(self):
+        return self._active < 0
+
     def register_async_callback(self, async_callback):
         #_LOGGER.debug("register_async_callback")
         self.async_callbacks.append(async_callback)
@@ -69,11 +92,23 @@ class LoxGate:
             async_signal_update()
 
     def set_value(self, stateName, value):
-        if self._device_type == "Jalousie" and stateName == "position":
+        if self._device_type == "Gate" and stateName == "position":
             _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Gate] - state={2}".format(self._id, self._name, value))
 
             self._position = value
 
+            self.async_update()
+        elif self._device_type == "Gate" and stateName == "active":
+            _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Gate] - active={2}".format(self._id, self._name, value))
+            self._active = int(value)
+            self.async_update()
+        elif self._device_type == "Gate" and stateName == "preventOpen":
+            _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Gate] - preventOpen={2}".format(self._id, self._name, value))
+            self._prevent_open = int(value)
+            self.async_update()
+        elif self._device_type == "Gate" and stateName == "preventClose":
+            _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Gate] - preventClose={2}".format(self._id, self._name, value))
+            self._prevent_close = int(value)
             self.async_update()
 
         else:

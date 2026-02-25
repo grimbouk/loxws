@@ -72,7 +72,8 @@ class LoxIntelligentRoomControllerV2:
 
     @property
     def override_reason(self):
-        return self._override_reason
+        value_names = ["0 = None","1 = Someone is present -> Comfort mode is active","2 = Window open -> Eco+ mode is active","3 = Comfort overrid","4 = Eco override","Eco+ override","6 = Prepare State Heat Up","7 = Prepare State Cool Down","8 = Overriden by source (source needs demand)"]
+        return { "value": self._override_reason, "text": value_names[self._override_reason] }
 
     @property
     def temp_actual(self):

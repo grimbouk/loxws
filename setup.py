@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="loxws",
-    version="0.0.59",
+    version="0.0.61",
     author="tjsmithuk",
     author_email="tjsmithuk@clamfish.com",
     description="Loxone Client",

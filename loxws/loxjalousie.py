@@ -12,7 +12,10 @@ class LoxJalousie:
         self._room = room
         self._cat = cat
         self._details = details
-        self._position = False
+        self._position = 0.0
+        self._up = 0
+        self._down = 0
+        self._target_position = 0.0
         self.async_callbacks = []
             
     @property
@@ -48,6 +51,26 @@ class LoxJalousie:
     def position(self):
         return self._position
 
+    @property
+    def up(self):
+        return self._up
+
+    @property
+    def down(self):
+        return self._down
+
+    @property
+    def target_position(self):
+        return self._target_position
+
+    @property
+    def is_opening(self):
+        return bool(self._up)
+
+    @property
+    def is_closing(self):
+        return bool(self._down)
+
     def register_async_callback(self, async_callback):
         #_LOGGER.debug("register_async_callback")
         self.async_callbacks.append(async_callback)
@@ -74,6 +97,18 @@ class LoxJalousie:
 
             self._position = value
 
+            self.async_update()
+        elif self._device_type == "Jalousie" and stateName == "up":
+            _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Jalousie] - up={2}".format(self._id, self._name, value))
+            self._up = int(value)
+            self.async_update()
+        elif self._device_type == "Jalousie" and stateName == "down":
+            _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Jalousie] - down={2}".format(self._id, self._name, value))
+            self._down = int(value)
+            self.async_update()
+        elif self._device_type == "Jalousie" and stateName == "targetPosition":
+            _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Jalousie] - targetPosition={2}".format(self._id, self._name, value))
+            self._target_position = float(value)
             self.async_update()
 
         else:

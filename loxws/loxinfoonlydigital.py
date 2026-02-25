@@ -13,6 +13,7 @@ class LoxInfoOnlyDigital:
         self._cat = cat
         self._details = details
         self._state = False
+        self._state_text = ""
         self.async_callbacks = []
             
     @property
@@ -49,6 +50,10 @@ class LoxInfoOnlyDigital:
         return self._state
 
     @property
+    def state_text(self):
+        return self._state_text
+
+    @property
     def format(self):
         return ""
 
@@ -71,9 +76,11 @@ class LoxInfoOnlyDigital:
             _LOGGER.debug("id:'{0}', name:'{1}', [SetValue InfoOnlyDigital] - state={2}".format(self._id, self._name, value))
 
             if value > 0:
-                self._state = self._details["text"]["on"]
+                self._state = True
+                self._state_text = self._details["text"]["on"]
             else:
-                self._state = self._details["text"]["off"]
+                self._state = False
+                self._state_text = self._details["text"]["off"]
 
             self.async_update()
 

@@ -12,7 +12,10 @@ class LoxWindow:
         self._room = room
         self._cat = cat
         self._details = details
-        self._position = False
+        self._position = 0.0
+        self._direction = 0
+        self._target_position = 0.0
+        self._locked_reason = ""
         self.async_callbacks = []
             
     @property
@@ -48,6 +51,26 @@ class LoxWindow:
     def position(self):
         return self._position
 
+    @property
+    def direction(self):
+        return self._direction
+
+    @property
+    def target_position(self):
+        return self._target_position
+
+    @property
+    def locked_reason(self):
+        return self._locked_reason
+
+    @property
+    def is_opening(self):
+        return self._direction > 0
+
+    @property
+    def is_closing(self):
+        return self._direction < 0
+
     def register_async_callback(self, async_callback):
         #_LOGGER.debug("register_async_callback")
         self.async_callbacks.append(async_callback)
@@ -69,11 +92,23 @@ class LoxWindow:
             async_signal_update()
 
     def set_value(self, stateName, value):
-        if self._device_type == "Jalousie" and stateName == "position":
+        if self._device_type == "Window" and stateName == "position":
             _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Window] - state={2}".format(self._id, self._name, value))
 
             self._position = value
 
+            self.async_update()
+        elif self._device_type == "Window" and stateName == "direction":
+            _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Window] - direction={2}".format(self._id, self._name, value))
+            self._direction = int(value)
+            self.async_update()
+        elif self._device_type == "Window" and stateName == "targetPosition":
+            _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Window] - targetPosition={2}".format(self._id, self._name, value))
+            self._target_position = float(value)
+            self.async_update()
+        elif self._device_type == "Window" and stateName == "lockedReason":
+            _LOGGER.debug("id:'{0}', name:'{1}', [SetValue Window] - lockedReason={2}".format(self._id, self._name, value))
+            self._locked_reason = str(value)
             self.async_update()
 
         else:

@@ -6,16 +6,6 @@ from base64 import b64decode, b64encode
 from binascii import a2b_hex, b2a_hex
 from struct import *
 
-from .loxdimmer import LoxDimmer
-from .loxswitch import LoxSwitch
-from .loxcolorpickerv2 import LoxColorPickerV2
-from .loxlightcontrollerv2 import LoxLightControllerV2
-from .loxiroomcontrollerv2 import LoxIntelligentRoomControllerV2
-from .loxinfoonlyanalog import LoxInfoOnlyAnalog
-from .loxinfoonlydigital import LoxInfoOnlyDigital
-from .loxclimatecontroller import LoxClimateController
-from .loxjalousie import LoxJalousie
-
 _LOGGER = logging.getLogger(__name__)
 
 #https://docs.python.org/3.7/library/struct.html#format-characters

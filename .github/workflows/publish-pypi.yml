@@ -1,0 +1,49 @@
+name: Publish to PyPI
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/loxws
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set CI package version
+        run: |
+          VERSION="0.0.${{ github.run_number }}"
+          export LOXWS_VERSION="${VERSION}"
+          echo "LOXWS_VERSION=${VERSION}" >> "$GITHUB_ENV"
+          python - <<'PY'
+import os
+from pathlib import Path
+
+version = os.environ["LOXWS_VERSION"]
+Path("loxws/_version.py").write_text(f'__version__ = "{version}"\n', encoding="utf-8")
+print(f"Using package version: {version}")
+PY
+
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade pip build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

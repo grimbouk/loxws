@@ -1,4 +1,5 @@
 name = "loxws"
+from ._version import __version__
 
 from .miniserver import Miniserver
 from .loxdimmer import LoxDimmer

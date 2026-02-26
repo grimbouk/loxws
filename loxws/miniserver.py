@@ -79,8 +79,9 @@ class Miniserver:
         self._http_ssl_param = None
         self._waiting_auth = False
 
-        self._keyexchange_mode = KEYEXCHANGE_MODES[0]
+        self._keyexchange_mode_idx = 0
         self._auth_mode_idx = 0
+        self._auth_failed_event = asyncio.Event()
 
         self.ready = asyncio.Event()
         self._handshake_lock = asyncio.Lock()
@@ -118,7 +119,21 @@ class Miniserver:
 
     async def wait_until_ready(self, timeout=45):
         """Wait until connection is authenticated and LoxAPP3 is loaded."""
-        await asyncio.wait_for(self.ready.wait(), timeout=timeout)
+        ready_task = self.loop.create_task(self.ready.wait())
+        failed_task = self.loop.create_task(self._auth_failed_event.wait())
+        done, pending = await asyncio.wait(
+            {ready_task, failed_task},
+            timeout=timeout,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+
+        if not done:
+            raise TimeoutError("Timed out waiting for miniserver readiness")
+        if failed_task in done and failed_task.result():
+            raise PermissionError("Miniserver authentication failed")
+
         if self._keep_alive_task is None:
             self._keep_alive_task = self.loop.create_task(self.keep_alive())
 
@@ -127,12 +142,17 @@ class Miniserver:
         if state == STATE_RUNNING:
             self._connected = True
             self._authenticated = False
+            self._waiting_auth = False
+            self._auth_mode_idx = 0
+            self._keyexchange_mode_idx = 0
+            self._auth_failed_event.clear()
             self.ready.clear()
             self.async_connection_status_callback(False)
             self.loop.create_task(self._async_begin_handshake())
         else:
             self._connected = False
             self._authenticated = False
+            self._waiting_auth = False
             self.ready.clear()
             self.async_connection_status_callback(False)
 
@@ -149,7 +169,7 @@ class Miniserver:
                     _LOGGER.debug("Skip keyexchange send because websocket is not ready")
                     return
 
-                self.wsclient.send(f"jdev/sys/keyexchange/{self._encrypted_session_key()}")
+                self._send_keyexchange()
             except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.error("Handshake start failed: %s", err)
 
@@ -212,10 +232,37 @@ class Miniserver:
         self._command_salt = None
         self._waiting_auth = False
 
+    def _keyexchange_mode(self):
+        return KEYEXCHANGE_MODES[self._keyexchange_mode_idx]
+
+    def _send_keyexchange(self):
+        self.wsclient.send(f"jdev/sys/keyexchange/{self._encrypted_session_key()}")
+
+    def _try_next_keyexchange_mode(self) -> bool:
+        """Advance keyexchange mode and resend while modes remain."""
+        current_idx = self._keyexchange_mode_idx
+        current_mode = KEYEXCHANGE_MODES[current_idx]
+        next_idx = current_idx + 1
+        if next_idx >= len(KEYEXCHANGE_MODES):
+            _LOGGER.debug("All keyexchange modes exhausted; authentication failed")
+            self._auth_failed_event.set()
+            return False
+
+        next_mode = KEYEXCHANGE_MODES[next_idx]
+        self._keyexchange_mode_idx = next_idx
+        self._prepare_session_crypto()
+        _LOGGER.debug(
+            "Keyexchange rejected with 401 using mode '%s'; retrying mode '%s'",
+            current_mode,
+            next_mode,
+        )
+        self._send_keyexchange()
+        return True
+
     def _encrypted_session_key(self):
         payload = f"{self._aes_key_hex}:{self._aes_iv_hex}".encode("utf-8")
 
-        mode = self._keyexchange_mode
+        mode = self._keyexchange_mode()
         if mode.startswith("oaep"):
             cipher = PKCS1_OAEP.new(self.public_key)
         else:
@@ -273,6 +320,7 @@ class Miniserver:
         if idx >= len(AUTH_MODES):
             _LOGGER.debug("All auth modes exhausted without success")
             self._waiting_auth = False
+            self._auth_failed_event.set()
             return False
 
         endpoint, hash_mode, permissions = AUTH_MODES[idx]
@@ -329,23 +377,25 @@ class Miniserver:
         code = str(ll.get("Code", ll.get("code", "")))
         value = ll.get("value")
 
-        if control:
+        if control and any(
+            token in control
+            for token in (
+                "keyexchange",
+                "getkey2",
+                "getjwt",
+                "gettoken",
+                "LoxAPP3.json",
+                "enablebinstatusupdate",
+            )
+        ):
             _LOGGER.debug("Processed websocket control='%s' code='%s'", control, code)
 
         if "keyexchange" in control:
             if code == "401":
-                try:
-                    idx = KEYEXCHANGE_MODES.index(self._keyexchange_mode)
-                except ValueError:
-                    idx = 0
-                self._keyexchange_mode = KEYEXCHANGE_MODES[(idx + 1) % len(KEYEXCHANGE_MODES)]
-                _LOGGER.debug(
-                    "Keyexchange rejected with 401 using mode '%s'; next reconnect will try '%s'",
-                    KEYEXCHANGE_MODES[idx],
-                    self._keyexchange_mode,
-                )
+                self._try_next_keyexchange_mode()
                 return
 
+            self._auth_mode_idx = 0
             self.wsclient.send(self.encrypt_command(f"jdev/sys/getkey2/{self.username}"))
             return
 
@@ -362,6 +412,7 @@ class Miniserver:
                 raw_alg,
                 self._server_hash_alg,
             )
+            self._auth_mode_idx = 0
             self._send_next_auth_mode()
             return
 
@@ -369,14 +420,16 @@ class Miniserver:
             self._waiting_auth = False
             if code != "200":
                 _LOGGER.debug(
-                    "Auth endpoint rejected (control='%s' code=%s); next reconnect uses auth mode index=%s",
+                    "Auth endpoint rejected (control='%s' code=%s); trying next auth mode index=%s",
                     control,
                     code,
                     self._auth_mode_idx,
                 )
+                self._send_next_auth_mode()
                 return
 
             self._auth_mode_idx = 0
+            self._auth_failed_event.clear()
             self._token = value.get("token") if isinstance(value, dict) else None
             self._authenticated = True
             self.wsclient.send("data/LoxAPP3.json")
@@ -386,9 +439,10 @@ class Miniserver:
             if self._waiting_auth:
                 self._waiting_auth = False
                 _LOGGER.debug(
-                    "Encrypted auth response 401; next reconnect uses auth mode index=%s",
+                    "Encrypted auth response 401; trying next auth mode index=%s",
                     self._auth_mode_idx,
                 )
+                self._send_next_auth_mode()
             return
 
         if "LoxAPP3.json" in control:

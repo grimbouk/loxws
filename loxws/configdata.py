@@ -170,8 +170,9 @@ class ConfigData:
 #Daytimer
 #Tracker
 
-        except Exception as ex:
-            _LOGGER.error(ex)
+        except Exception:
+            _LOGGER.exception("Failed to parse Loxone config data")
+            raise
             
         _LOGGER.debug("Config Done")
 

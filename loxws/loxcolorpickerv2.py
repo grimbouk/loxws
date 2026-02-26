@@ -99,18 +99,12 @@ class LoxColorPickerV2:
             elif value.startswith("temp"):
                 #temp(100,4783)
                 temp = value.strip("temp()").split(",")
-                #_LOGGER.debug("  temp: {0} {1}".format(value, temp))
-                #############################
-                # TODO - Do something????
-                #############################
-
-                #self._brightness = int(temp[2]) * 2.55
-                #self._hs_color = [ float(temp[0]), float(temp[1]) ]
-
-                #if self._brightness > 0:
-                #    self._state = True
-                #else:
-                #    self._state = False
+                if len(temp) >= 2:
+                    brightness_pct = float(temp[0])
+                    kelvin = float(temp[1])
+                    self._brightness = brightness_pct * 2.55
+                    self._color_temp = kelvin
+                    self._state = self._brightness > 0
 
             #_LOGGER.debug("Update ColorPickerV2: {0}".format(self._name))
             self.async_update()

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import ssl
+import time
 
 import aiohttp
 
@@ -47,6 +48,7 @@ class WSClient:
         self.async_message_handler_callback = async_message_callback
         self._retry_handle = None
         self._ssl_param = None
+        self._last_drop_send_log = 0.0
 
     @property
     def state(self):
@@ -125,17 +127,24 @@ class WSClient:
         if self.state == STATE_RUNNING and self.ws is not None and not self.ws.closed:
             self.loop.create_task(self._safe_send(message))
         else:
-            _LOGGER.debug("Drop send while websocket not ready: %s", message)
+            self._log_drop_send()
 
     async def _safe_send(self, message):
         """Send a frame while suppressing expected close-race errors."""
         try:
             if self.ws is None or self.ws.closed:
-                _LOGGER.debug("Drop send while websocket not ready: %s", message)
+                self._log_drop_send()
                 return
             await self.ws.send_str(message)
         except Exception as err:  # pylint: disable=broad-except
             _LOGGER.debug("Ignoring websocket send error on closing transport: %s", err)
+
+    def _log_drop_send(self):
+        """Log send drops without flooding reconnect scenarios."""
+        now = time.monotonic()
+        if now - self._last_drop_send_log >= 30:
+            _LOGGER.debug("Drop send while websocket not ready")
+            self._last_drop_send_log = now
 
     def stop(self):
         """Close websocket connection and stop reconnects."""

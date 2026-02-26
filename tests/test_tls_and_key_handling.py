@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from wsclient import WSClient
 
 try:
-    from miniserver import Miniserver
+    from loxws.miniserver import Miniserver
 except ModuleNotFoundError:
     Miniserver = None
 
@@ -78,7 +78,10 @@ class TestTLSHandling(unittest.IsolatedAsyncioTestCase):
         if Miniserver is None:
             self.skipTest("pycryptodome not installed in local test environment")
         ms = Miniserver(host="host", port=443, username="user", password="pass", use_tls=True, verify_tls=False)
-        with patch("miniserver.ssl.create_default_context", side_effect=AssertionError("should not be called")):
+        with patch(
+            "loxws.miniserver.ssl.create_default_context",
+            side_effect=AssertionError("should not be called"),
+        ):
             self.assertFalse(await ms._async_http_ssl_param())
 
 

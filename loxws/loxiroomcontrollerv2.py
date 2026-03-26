@@ -2,6 +2,7 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class LoxIntelligentRoomControllerV2:
     """Class for node abstraction."""
 
@@ -29,7 +30,15 @@ class LoxIntelligentRoomControllerV2:
         self._comfort_temperature_cool = 0
 
         self.async_callbacks = []
-            
+
+    @staticmethod
+    def _enum_hint(value_names, value, offset=0):
+        """Return a safe enum label for logging and diagnostics."""
+        idx = int(value) + offset
+        if 0 <= idx < len(value_names):
+            return value_names[idx]
+        return f"Unknown ({int(value)})"
+
     @property
     def id(self):
         return self._id
@@ -73,7 +82,7 @@ class LoxIntelligentRoomControllerV2:
     @property
     def override_reason(self):
         value_names = ["0 = None","1 = Someone is present -> Comfort mode is active","2 = Window open -> Eco+ mode is active","3 = Comfort overrid","4 = Eco override","Eco+ override","6 = Prepare State Heat Up","7 = Prepare State Cool Down","8 = Overriden by source (source needs demand)"]
-        return { "value": self._override_reason, "text": value_names[self._override_reason] }
+        return { "value": self._override_reason, "text": self._enum_hint(value_names, self._override_reason) }
 
     @property
     def temp_actual(self):
@@ -133,28 +142,28 @@ class LoxIntelligentRoomControllerV2:
         if self._device_type == "IRoomControllerV2" and stateName == "activeMode":
             value = int(value)
             value_names = ["0 = Economy","1 = Comfort temperature","2 = Building protection","3 = Manual"]
-            _LOGGER.debug("id:'{0}', name:'{1}', state:'{2}', value:{3}, hint:'{4}'".format(self._id, self._name, stateName, value, value_names[value]))
+            _LOGGER.debug("id:'{0}', name:'{1}', state:'{2}', value:{3}, hint:'{4}'".format(self._id, self._name, stateName, value, self._enum_hint(value_names, value)))
             self._active_mode = value
             self.async_update()
 
         elif self._device_type == "IRoomControllerV2" and stateName == "operatingMode":
             value = int(value)
             value_names = ["0 = Automatic, heating and cooling allowed","1 = Automatic, only heating allowed","2 = Automatic, only cooling allowed","3 = Manual, heating and cooling allowed","4 = Manual, only heating allowed","5 = Manual, only cooling allowed"]
-            _LOGGER.debug("id:'{0}', name:'{1}', state:'{2}', value:{3}, hint:'{4}'".format(self._id, self._name, stateName, value, value_names[value]))
+            _LOGGER.debug("id:'{0}', name:'{1}', state:'{2}', value:{3}, hint:'{4}'".format(self._id, self._name, stateName, value, self._enum_hint(value_names, value)))
             self._operating_mode = value
             self.async_update()
 
         elif self._device_type == "IRoomControllerV2" and stateName == "prepareState":
             value = int(value)
             value_names = ["-1 = Cooling down","0 = No Action","1 = Heating up"]
-            _LOGGER.debug("id:'{0}', name:'{1}', state:'{2}', value:{3}, hint:'{4}'".format(self._id, self._name, stateName, value, value_names[value + 1]))
+            _LOGGER.debug("id:'{0}', name:'{1}', state:'{2}', value:{3}, hint:'{4}'".format(self._id, self._name, stateName, value, self._enum_hint(value_names, value, offset=1)))
             self._prepare_state = value
             self.async_update()
 
         elif self._device_type == "IRoomControllerV2" and stateName == "overrideReason":
             value = int(value)
             value_names = ["0 = None","1 = Someone is present -> Comfort mode is active","2 = Window open -> Eco+ mode is active","3 = Comfort overrid","4 = Eco override","Eco+ override","6 = Prepare State Heat Up","7 = Prepare State Cool Down","8 = Overriden by source (source needs demand)"]
-            _LOGGER.debug("id:'{0}', name:'{1}', state:'{2}', value:{3}, hint:'{4}'".format(self._id, self._name, stateName, value, value_names[value]))
+            _LOGGER.debug("id:'{0}', name:'{1}', state:'{2}', value:{3}, hint:'{4}'".format(self._id, self._name, stateName, value, self._enum_hint(value_names, value)))
             self._override_reason = value
             self.async_update()
 
@@ -186,7 +195,7 @@ class LoxIntelligentRoomControllerV2:
         elif self._device_type == "IRoomControllerV2" and stateName == "currentMode":
             value = int(value)
             value_names = ["0 = Automatic, heating and cooling allowed","1 = Automatic, only heating allowed","2 = Automatic, only cooling allowed","3 = Manual, heating and cooling allowed","4 = Manual, only heating allowed","5 = Manual, only cooling allowed"]
-            _LOGGER.debug("id:'{0}', name:'{1}', state:'{2}', value:{3}, hint:'{4}'".format(self._id, self._name, stateName, value, value_names[value]))
+            _LOGGER.debug("id:'{0}', name:'{1}', state:'{2}', value:{3}, hint:'{4}'".format(self._id, self._name, stateName, value, self._enum_hint(value_names, value)))
             self._current_mode = value
             self.async_update()
 

@@ -9,6 +9,7 @@ import unittest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "loxws")))
 
 from loxcolorpickerv2 import LoxColorPickerV2
+from loxiroomcontrollerv2 import LoxIntelligentRoomControllerV2
 from loxswitch import LoxSwitch
 
 
@@ -37,6 +38,17 @@ class TestDeviceCallbacks(unittest.TestCase):
         self.assertTrue(device.state)
         self.assertAlmostEqual(device.brightness, 127.5)
         self.assertEqual(device.color_temp, 4200)
+
+    def test_room_controller_unknown_enum_value_does_not_crash(self):
+        device = LoxIntelligentRoomControllerV2("id1", "Climate", "IRoomControllerV2", "Room", "Cat", {})
+
+        device.set_value("activeMode", 7)
+        device.set_value("currentMode", 8)
+        device.set_value("overrideReason", 12)
+
+        self.assertEqual(device.active_mode, 7)
+        self.assertEqual(device.current_mode, 8)
+        self.assertEqual(device.override_reason["text"], "Unknown (12)")
 
 
 if __name__ == "__main__":
